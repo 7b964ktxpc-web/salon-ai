@@ -1,0 +1,6 @@
+{
+  "name": "Lashm.anya AI",
+  "description": "Универсальная SaaS-платформа для бьюти-мастеров и студий: онлайн-запись, персонализированный Telegram Mini App, AI-память клиенток, акции и монетизация по подписке.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

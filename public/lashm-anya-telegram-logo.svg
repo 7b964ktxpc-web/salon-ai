@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="220" fill="#F5EEE7"/>
+  <g fill="none" stroke="#5B493E" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="34" d="M286 268v422c0 44-25 66-76 66h-36"/>
+    <path stroke-width="34" d="M174 268h248"/>
+    <path stroke-width="34" d="M366 756 520 294l160 462"/>
+    <path stroke-width="34" d="M425 590h198"/>
+    <path stroke-width="20" d="M548 492c88 6 163-8 235-52"/>
+    <path stroke-width="14" d="M694 457c34 5 69 1 103-10"/>
+    <path stroke-width="12" d="M700 476c35 13 69 15 105 12"/>
+    <path stroke-width="10" d="M701 494c31 20 62 29 96 31"/>
+    <path stroke-width="8" d="M699 510c26 26 54 41 84 48"/>
+  </g>
+  <text x="512" y="850" text-anchor="middle" fill="#5B493E" font-family="Georgia, 'Times New Roman', serif" font-size="92" letter-spacing="5">lashm.anya</text>
+</svg>

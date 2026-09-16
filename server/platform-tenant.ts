@@ -28,6 +28,14 @@ export interface TelegramBotConfig {
 }
 
 const PUBLIC_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const SESSION_TTL_MS = 7 * 86400000;
+const SESSION_VERSION = 1;
+
+function getSessionSecret(): string {
+  const secret = String(process.env.BEAUTY_AI_SESSION_SECRET || '').trim();
+  if (!secret && process.env.NODE_ENV === 'production') throw new Error('BEAUTY_AI_SESSION_SECRET не настроен');
+  return secret;
+}
 
 export function normalizeSlug(value: string): string {
   const slug = value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9а-яё]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
@@ -71,6 +79,7 @@ export function resolveTelegramRole(telegramId: string, superAdminTelegramId: st
 }
 
 export function assertSalonOwner(session: TenantSession, salonId: string): void {
+  if (!salonId) throw new Error('Не указан салон');
   if (session.role === 'super_admin') return;
   if (session.role !== 'salon_owner' || session.salonId !== salonId) throw new Error('Недостаточно прав для доступа к этому салону');
 }
@@ -85,24 +94,27 @@ export function botConfigFromSalon(salon: SalonTenant): TelegramBotConfig {
 
 export function planAllowsBot(planId: SubscriptionPlanId): boolean { return planId === 'pro' || planId === 'studio'; }
 
-/** Signed session token. The browser cannot change salonId/role without invalidating the signature. */
-export function createTenantSessionToken(session: TenantSession, secret = process.env.BEAUTY_AI_SESSION_SECRET || process.env.TELEGRAM_WEBHOOK_SECRET || ''): string {
+/** Signed tenant session. The secret is intentionally dedicated to browser/admin sessions. */
+export function createTenantSessionToken(session: TenantSession, secret = getSessionSecret()): string {
   if (!secret) throw new Error('BEAUTY_AI_SESSION_SECRET не настроен');
-  const payload = Buffer.from(JSON.stringify({ ...session, exp: Date.now() + 7 * 86400000 }), 'utf8').toString('base64url');
+  if (!session.role) throw new Error('Некорректная роль сессии');
+  if (['salon_owner', 'master'].includes(session.role) && !session.salonId) throw new Error('Для роли салона не указан salonId');
+  const payload = Buffer.from(JSON.stringify({ v: SESSION_VERSION, ...session, exp: Date.now() + SESSION_TTL_MS }), 'utf8').toString('base64url');
   const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
   return `${payload}.${signature}`;
 }
 
-export function verifyTenantSessionToken(token: string, secret = process.env.BEAUTY_AI_SESSION_SECRET || process.env.TELEGRAM_WEBHOOK_SECRET || ''): TenantSession | null {
+export function verifyTenantSessionToken(token: string, secret = getSessionSecret()): TenantSession | null {
   if (!token || !secret) return null;
   const [payload, signature] = token.split('.');
-  if (!payload || !signature) return null;
+  if (!payload || !signature || token.split('.').length !== 2) return null;
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
   if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
   try {
-    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as TenantSession & { exp?: number };
-    if (!parsed.exp || parsed.exp <= Date.now()) return null;
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as TenantSession & { exp?: number; v?: number };
+    if (parsed.v !== SESSION_VERSION || !parsed.exp || parsed.exp <= Date.now()) return null;
     if (!['super_admin', 'salon_owner', 'master', 'client'].includes(parsed.role)) return null;
+    if (['salon_owner', 'master'].includes(parsed.role) && !parsed.salonId) return null;
     return { role: parsed.role, salonId: parsed.salonId, telegramId: parsed.telegramId };
   } catch { return null; }
 }

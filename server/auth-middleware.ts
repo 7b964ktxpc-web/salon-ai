@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verifyTenantSessionToken, type TenantSession } from './platform-tenant.ts';
+import { runWithTenant } from './tenant-db-scope.ts';
 
 export function getBearerToken(req: Request): string | null {
   const header = String(req.header('authorization') || '');
@@ -10,7 +11,10 @@ export function getBearerToken(req: Request): string | null {
 export function attachTenantSession(req: Request, _res: Response, next: NextFunction): void {
   const token = getBearerToken(req);
   req.tenantSession = token ? (verifyTenantSessionToken(token) || undefined) : undefined;
-  next();
+  const salonId = req.tenantSession?.role === 'salon_owner' || req.tenantSession?.role === 'master'
+    ? req.tenantSession.salonId
+    : undefined;
+  runWithTenant(salonId, next);
 }
 
 export function requireSession(req: Request, res: Response): TenantSession | null {
